@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ricette Locali</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/styles.css">
+  <style>
+    .recipe-source{display:block;margin-top:9px;overflow:hidden;color:var(--coral);font-size:11px;text-overflow:ellipsis;white-space:nowrap}
+    .recipe-image{cursor:pointer}
+    .recipe-detail{position:fixed;inset:0;z-index:10;display:grid;place-items:center;padding:20px;background:#20252299}
+    .recipe-detail-panel{position:relative;width:min(760px,100%);max-height:90vh;overflow:auto;background:var(--paper);border-radius:8px;box-shadow:0 20px 60px #20252255}
+    .recipe-detail-close{position:absolute;right:14px;top:14px;z-index:1;width:34px;height:34px;border:0;border-radius:50%;background:#fff;color:var(--ink);font-size:22px;cursor:pointer}
+    .recipe-detail-image{height:230px;background:#dfe8dd center/cover}
+    .recipe-detail-content{padding:28px 32px 34px}.recipe-detail-content h2{font:700 34px 'Playfair Display';margin:7px 0}.recipe-detail-content h4{margin:24px 0 8px;color:var(--green);font-size:11px;letter-spacing:.1em;text-transform:uppercase}.recipe-detail-content p{color:var(--muted);line-height:1.55;font-size:13px}.recipe-detail-content ul,.recipe-detail-content ol{padding-left:20px;color:var(--ink);font-size:13px;line-height:1.7}.recipe-detail-meta{display:flex;flex-wrap:wrap;gap:8px;color:var(--muted);font-size:12px}.recipe-detail-meta span{padding:6px 9px;border:1px solid var(--line);border-radius:4px;background:#fff}.ingredient-filter{height:43px;min-width:145px;display:flex;align-items:center;gap:7px;padding:0 11px;background:#fff;border:1px solid var(--line);border-radius:6px}.ingredient-filter span{color:var(--green);font-weight:700}.ingredient-filter input{min-width:0}.ingredient-filter.exclude span{color:var(--coral)}
+    .status-control{display:flex;align-items:center;gap:10px;margin:18px 0;color:var(--muted);font-size:12px}.status-control select{height:36px;padding:0 10px;color:var(--green);font-size:12px}
+    .category-section{min-width:0;margin:0;padding:12px;border:1px solid var(--line);border-radius:8px;background:#f1f4ed;transition:background .2s,border-color .2s}.category-section.drag-target{background:#edf4df;border-color:var(--lime)}.category-heading{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin:0 0 13px;border-bottom:1px solid var(--line);padding:0 4px 9px}.category-heading h2{margin:0;color:var(--green);font:700 25px 'Playfair Display'}.category-heading span{color:var(--muted);font-size:11px}.category-grid{display:grid;grid-template-columns:1fr;gap:14px}.filtered-category .category-grid{grid-template-columns:repeat(5,minmax(0,1fr))}.recipe-card[draggable="true"]{cursor:grab}.recipe-card.dragging{opacity:.45;cursor:grabbing}#recipe-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));align-items:start;gap:18px}.main{max-width:none;padding-left:3vw;padding-right:3vw}@media(max-width:1200px){.filtered-category .category-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}@media(max-width:900px){.filtered-category .category-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:560px){.filtered-category .category-grid{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar">
+      <div class="brand"><span class="brand-mark">R</span><div><strong>ricette</strong><small>archivio locale</small></div></div>
+      <nav><button class="nav-item active" data-view="library"><span>▦</span> La mia raccolta</button><button class="nav-item" data-view="search"><span>⌕</span> Cerca online</button></nav>
+      <div class="sidebar-note"><span class="leaf">✳</span><p>Il tuo ricettario, senza rumore.</p><small>Dati e immagini restano sul tuo computer.</small></div>
+    </aside>
+    <main class="main">
+      <header class="topbar"><div><span class="eyebrow">ARCHIVIO PERSONALE</span><h1 id="page-title">La mia raccolta</h1></div><button class="primary" id="new-search">+ Cerca una ricetta</button></header>
+      <section id="library-view" class="view">
+        <div class="stats"><div><span>RICETTE SALVATE</span><strong id="total-count">0</strong></div><div><span>PREFERITE</span><strong id="favorite-count">0</strong></div><div class="tip"><span>✦</span><p>Un buon archivio<br><b>comincia da una cena.</b></p></div></div>
+        <div class="toolbar"><label class="searchbox"><span>⌕</span><input id="library-search" placeholder="Cerca per titolo, ingrediente..." autocomplete="off"></label><label class="ingredient-filter"><span>＋</span><input id="ingredient-filter" placeholder="Con ingrediente" autocomplete="off"></label><label class="ingredient-filter exclude"><span>−</span><input id="exclude-ingredient-filter" placeholder="Senza ingrediente" autocomplete="off"></label><select id="category-filter"><option value="">Tutte le categorie</option><option>Antipasti</option><option>Primi</option><option>Secondi</option><option>Contorni</option><option>Dolci</option><option>Pane e pizza</option><option>Altro</option></select><select id="status-filter"><option value="">Tutte le ricette</option><option value="da provare">Da provare</option><option value="preparata">Già preparate</option></select><button class="icon-btn" id="favorites-filter" title="Mostra preferite">♡</button></div>
+        <div id="recipe-grid" class="recipe-grid"></div><div id="empty-library" class="empty hidden"><div>✦</div><h2>La tua raccolta è ancora vuota</h2><p>Cerca qualcosa di buono online e salvalo qui.</p><button class="primary" id="empty-search">Inizia una ricerca</button></div>
+      </section>
+      <section id="search-view" class="view hidden"><div class="search-hero"><span class="eyebrow">RICERCA ONLINE</span><h2>Trova la prossima<br><em>cosa buona.</em></h2><label class="big-search"><span>⌕</span><input id="online-search" placeholder="es. risotto ai funghi senza lattosio"><button id="run-search">Cerca</button></label><p>Risultati da SearXNG locale. Se non configurato, imposta <code>SEARXNG_URL</code>.</p></div><div id="search-results" class="search-results"></div></section>
+    </main>
+  </div>
+  <div id="recipe-detail" class="recipe-detail hidden" role="dialog" aria-modal="true" aria-label="Dettagli ricetta">
+    <div class="recipe-detail-panel">
+      <button id="close-detail" class="recipe-detail-close" aria-label="Chiudi dettagli">×</button>
+      <div id="recipe-detail-content"></div>
+    </div>
+  </div>
+  <div id="toast" class="toast"></div>
+  <script src="/static/app.js"></script>
+</body>
+</html>

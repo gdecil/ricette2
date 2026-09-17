@@ -1,0 +1,115 @@
+vorrei una web app che mi permetta
+1 cercare ricette online
+2 selezionare quelle ritenute interessanti
+3 scaricare le ricette selezionate in un database locale con tutte le informazioni disponibili foto comprese 
+3a l'estrazione delle informazioni può essere fatto tramite ollama o anythingllm localmente
+4 creare una dashboard locale per visualizzare e cercare le ricette salvate localmente
+
+A Backend
+Python + FastAPI
+Gestione di ricerca, importazione, estrazione e archivio
+Elaborazioni in background con Celery/RQ, oppure inizialmente con i task di FastAPI
+
+B Database locale
+SQLite per la prima versione
+FTS5 per la ricerca full-text
+Eventuale passaggio futuro a PostgreSQL
+
+C Estrazione delle ricette
+Ordine consigliato:
+Lettura dei dati strutturati schema.org/Recipe in JSON-LD
+Parsing HTML con:
+BeautifulSoup
+Trafilatura o Readability
+Se i dati sono incompleti, estrazione tramite Ollama
+Validazione e normalizzazione del JSON prodotto
+Ollama è più adatto di AnythingLLM per ottenere output strutturati. AnythingLLM può essere aggiunto in seguito per interrogare l’archivio in linguaggio naturale.
+
+C Frontend
+React/Next.js per una UI moderna
+
+D Archiviazione delle immagini
+Download nel filesystem, ad esempio:data/images/<recipe-id>/
+Nel database vengono salvati:
+percorso locale
+URL originale
+eventuale didascalia
+hash del file per evitare duplicati
+
+
+Flusso dell’applicazione
+
+1 Ricerca online
+L’utente inserisce una query, ad esempio:
+risotto ai funghi senza lattosio
+Il backend interroga una delle seguenti fonti:
+SearXNG locale, soluzione consigliata per mantenere il controllo
+duckduckgo-search per cercare i primi 10 risultati su Google/DuckDuckGo
+Brave Search API
+Bing Search API
+Google Custom Search API
+È preferibile non fare scraping diretto delle pagine dei motori di ricerca, perché è fragile e spesso contrario ai termini di servizio.
+I risultati mostrano:
+titolo
+sito sorgente
+URL
+descrizione
+miniatura, quando disponibile
+stato: già salvata/non salvata
+
+2 Selezione
+L’utente seleziona una o più ricette e avvia l’importazione.
+
+3 Download ed estrazione
+Per ogni URL:
+Scaricamento della pagina
+Individuazione del JSON-LD Recipe
+Estrazione del contenuto principale
+pipeline a 2 livelli → JSON-LD schema.org/Recipe (preciso, veloce, presente sul 90% dei siti di cucina) → fallback LLM locale (Ollama / AnythingLLM / qualsiasi endpoint OpenAI-compatible)
+Il backend riceve l'URL:
+Usa requests per scaricare l'HTML della pagina.
+Usa BeautifulSoup per trovare il tag <img src="..."> principale o le immagini all'interno dell'articolo. Scarica l'immagine e salvala in una cartella locale (es. ./local_db/images/nome_ricetta.jpg).
+Usa Trafilatura per estrarre tutto il testo pulito dalla pagina (senza pubblicità, bottoni, ecc.).
+Recupero di:
+titolo
+descrizione
+autore
+ingredienti
+quantità e unità
+procedimento
+tempi di preparazione e cottura
+porzioni
+categorie
+cucina
+informazioni nutrizionali
+immagini
+valutazioni
+URL e sito originale
+
+Completamento tramite Ollama, se necessario
+3a. Estrazione tramite Ollama (Il "Cervello")
+Ora hai un testo lungo e disordinato. Lo invii al tuo server Ollama locale chiedendogli di formattarlo. Puoi usare la libreria langchain o fare una semplice richiesta HTTP all'API di Ollama.
+Il Prompt è fondamentale:
+"Sei un assistente culinario. Ti fornirò il testo estratto da un sito web. Il tuo compito è estrarre le informazioni della ricetta e restituirle esclusivamente in formato JSON con questa struttura: { "titolo": "", "tempi_preparazione": "", "porzioni": "", "ingredienti": ["", ""], "procedimento": ["passo 1", "passo 2"] }. Ecco il testo: [TESTO ESTRATTO]"
+Ollama supporta la modalità "JSON response", assicurandoti che l'output sia sempre un formato leggibile dal tuo database.
+Download locale delle immagini
+Salvataggio nel database
+Rilevamento dei duplicati
+
+4 Dashboard locale
+La dashboard può comprendere:
+ricerca full-text
+filtri per ingrediente
+esclusione di ingredienti
+categoria
+cucina
+tempo totale
+difficoltà
+valutazione
+sito sorgente
+ricette preferite
+ricette da provare
+modifica manuale
+eliminazione
+reimportazione dalla fonte
+esportazione in JSON, Markdown o PDF
