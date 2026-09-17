@@ -17,7 +17,7 @@ try:
 except ImportError:
     trafilatura = None
 from bs4 import BeautifulSoup
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, File, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, HttpUrl
@@ -311,6 +311,30 @@ def update_recipe(recipe_id: str, update: RecipeUpdate) -> dict[str, Any]:
             raise HTTPException(404, "Ricetta non trovata")
         recipe = serialize_recipe(row); refresh_fts(db, recipe); db.commit()
         return recipe
+
+
+@app.post("/api/recipes/{recipe_id}/image")
+async def upload_recipe_image(recipe_id: str, image: UploadFile = File(...)) -> dict[str, Any]:
+    content_type = image.content_type or ""
+    if not content_type.startswith("image/"):
+        raise HTTPException(415, "Il file deve essere un'immagine")
+    content = await image.read()
+    if not content:
+        raise HTTPException(400, "Il file immagine è vuoto")
+    digest = hashlib.sha256(content).hexdigest()
+    extension = ".jpg" if content_type in {"image/jpeg", "image/jpg"} else ".png" if content_type == "image/png" else ".webp" if content_type == "image/webp" else ".img"
+    filename = f"{digest}{extension}"
+    try:
+        (IMAGE_DIR / filename).write_bytes(content)
+    except OSError as error:
+        raise HTTPException(500, "Impossibile salvare l'immagine") from error
+    with closing(connect()) as db:
+        db.execute("UPDATE recipes SET image_path = ?, image_url = ?, image_hash = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", (f"/images/{filename}", "", digest, recipe_id))
+        row = db.execute("SELECT * FROM recipes WHERE id = ?", (recipe_id,)).fetchone()
+        if not row:
+            raise HTTPException(404, "Ricetta non trovata")
+        db.commit()
+        return serialize_recipe(row)
 
 
 @app.delete("/api/recipes/{recipe_id}")
