@@ -268,7 +268,7 @@ def index() -> FileResponse:
 
 
 @app.get("/api/recipes")
-def recipes(q: str = "", ingredient: str = "", exclude_ingredient: str = "", favorite: bool = False, status: str = "", limit: int = Query(100, le=200)) -> list[dict[str, Any]]:
+def recipes(q: str = "", ingredient: str = "", exclude_ingredient: str = "", favorite: bool = False, status: str = "", limit: int | None = None) -> list[dict[str, Any]]:
     with closing(connect()) as db:
         if q.strip():
             query = "SELECT r.* FROM recipes r JOIN recipes_fts f ON f.recipe_id = r.id WHERE recipes_fts MATCH ?"
@@ -289,7 +289,9 @@ def recipes(q: str = "", ingredient: str = "", exclude_ingredient: str = "", fav
             query += " AND r.favorite = 1" if q.strip() else " AND favorite = 1"
         if status:
             query += " AND r.status = ?"; params.append(status)
-        query += " ORDER BY updated_at DESC LIMIT ?"; params.append(limit)
+        query += " ORDER BY updated_at DESC"
+        if limit is not None:
+            query += " LIMIT ?"; params.append(limit)
         return [serialize_recipe(row) for row in db.execute(query, params).fetchall()]
 
 
