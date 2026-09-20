@@ -46,6 +46,43 @@ class RecipeUpdate(BaseModel):
     instructions: list[str] | None = None
     favorite: bool | None = None
     status: str | None = None
+    manual_text: str | None = None
+
+
+SECTION_HEADER = re.compile(
+    r"^\s*(?:[-*#]\s*)?(ingredienti|occorrente|procedimento|preparazione|istruzioni|istruzione|metodo)\s*:?[\s-]*$",
+    re.IGNORECASE,
+)
+
+
+def split_manual_text(value: str) -> tuple[str, list[str] | None, list[str] | None]:
+    """Extract explicitly labelled ingredient and instruction sections from notes."""
+    sections: dict[str, list[str]] = {"ingredients": [], "instructions": []}
+    found: set[str] = set()
+    notes: list[str] = []
+    current: str | None = None
+
+    for raw_line in value.splitlines():
+        header = SECTION_HEADER.match(raw_line)
+        if header:
+            label = header.group(1).lower()
+            current = "ingredients" if label in {"ingredienti", "occorrente"} else "instructions"
+            found.add(current)
+            continue
+        line = re.sub(r"^\s*(?:[-*]\s+|\d+[.)]\s+)", "", raw_line).strip()
+        if not line:
+            continue
+        items = re.split(r"\s*;\s*|\s+-\s+", line) if current == "ingredients" else [line]
+        items = [item.strip() for item in items if item.strip()]
+        if current:
+            sections[current].extend(items)
+        else:
+            notes.append(line)
+
+    if not found:
+        return value, None, None
+    remaining = "\n".join(notes)
+    return remaining, sections["ingredients"] if "ingredients" in found else None, sections["instructions"] if "instructions" in found else None
 
 
 def connect() -> sqlite3.Connection:
@@ -89,6 +126,9 @@ def init_db() -> None:
             );
             """
         )
+        columns = {row[1] for row in db.execute("PRAGMA table_info(recipes)").fetchall()}
+        if "manual_text" not in columns:
+            db.execute("ALTER TABLE recipes ADD COLUMN manual_text TEXT DEFAULT ''")
         db.commit()
 
 
@@ -236,11 +276,15 @@ def recipes(q: str = "", ingredient: str = "", exclude_ingredient: str = "", fav
         else:
             query, params = "SELECT r.* FROM recipes r WHERE 1=1", []
         if ingredient.strip():
-            query += " AND r.id IN (SELECT recipe_id FROM recipes_fts WHERE ingredients MATCH ?)"
-            params.append(" ".join(f'"{part}"' for part in re.findall(r"[\wÀ-ÿ]+", ingredient)))
+            ingredient_terms = re.findall(r"[\wÀ-ÿ]+", ingredient)
+            ingredient_match = " ".join(f'"{part}"' for part in ingredient_terms)
+            query += " AND (r.title LIKE ? OR r.manual_text LIKE ? OR r.id IN (SELECT recipe_id FROM recipes_fts WHERE ingredients MATCH ?))"
+            params.extend([f"%{ingredient}%", f"%{ingredient}%", ingredient_match])
         if exclude_ingredient.strip():
-            query += " AND r.id NOT IN (SELECT recipe_id FROM recipes_fts WHERE ingredients MATCH ?)"
-            params.append(" ".join(f'"{part}"' for part in re.findall(r"[\wÀ-ÿ]+", exclude_ingredient)))
+            excluded_terms = re.findall(r"[\wÀ-ÿ]+", exclude_ingredient)
+            excluded_match = " ".join(f'"{part}"' for part in excluded_terms)
+            query += " AND NOT (r.title LIKE ? OR r.manual_text LIKE ? OR r.id IN (SELECT recipe_id FROM recipes_fts WHERE ingredients MATCH ?))"
+            params.extend([f"%{exclude_ingredient}%", f"%{exclude_ingredient}%", excluded_match])
         if favorite:
             query += " AND r.favorite = 1" if q.strip() else " AND favorite = 1"
         if status:
@@ -302,6 +346,13 @@ def update_recipe(recipe_id: str, update: RecipeUpdate) -> dict[str, Any]:
     changes = update.model_dump(exclude_none=True)
     if not changes:
         raise HTTPException(400, "Nessuna modifica")
+    if "manual_text" in changes:
+        manual_text, ingredients, instructions = split_manual_text(changes["manual_text"])
+        changes["manual_text"] = manual_text
+        if ingredients is not None:
+            changes["ingredients"] = ingredients
+        if instructions is not None:
+            changes["instructions"] = instructions
     encoded = {key: json.dumps(value, ensure_ascii=False) if isinstance(value, (list, dict)) else value for key, value in changes.items()}
     assignments = ", ".join(f"{key} = ?" for key in encoded) + ", updated_at = CURRENT_TIMESTAMP"
     with closing(connect()) as db:

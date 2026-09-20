@@ -16,6 +16,7 @@ Web app locale per cercare, importare e organizzare ricette online mantenendo da
 - Modifica dello stato: da provare o gia preparata
 - Cambio categoria dal dettaglio della ricetta
 - Caricamento manuale dell'immagine
+- Salvataggio di testo e appunti incollati manualmente nel dettaglio
 - Visualizzazione dell'URL originale e dei dettagli estratti
 - Eliminazione delle ricette dal dettaglio
 
