@@ -6,6 +6,7 @@ Web app locale per cercare, importare e organizzare ricette online mantenendo da
 
 - Ricerca online tramite SearXNG locale
 - Importazione di una o piu ricette da URL
+- Inserimento manuale di ricette con ingredienti e procedimento
 - Estrazione dei dati `schema.org/Recipe` in JSON-LD
 - Fallback con Trafilatura/BeautifulSoup e Ollama opzionale
 - Database SQLite locale con ricerca full-text FTS5
@@ -124,6 +125,7 @@ ricette/
 - `GET /api/search?q=...`: ricerca online tramite SearXNG
 - `GET /api/recipes`: elenco e filtri della raccolta
 - `POST /api/import`: importa ricette da URL
+- `POST /api/recipes`: crea una ricetta inserita manualmente
 - `PATCH /api/recipes/{id}`: modifica ricetta
 - `POST /api/recipes/{id}/image`: carica un'immagine
 - `DELETE /api/recipes/{id}`: elimina una ricetta

@@ -20,7 +20,7 @@ from bs4 import BeautifulSoup
 from fastapi import FastAPI, File, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, HttpUrl
+from pydantic import BaseModel, Field, HttpUrl
 
 BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "data"
@@ -47,6 +47,18 @@ class RecipeUpdate(BaseModel):
     favorite: bool | None = None
     status: str | None = None
     manual_text: str | None = None
+
+
+class ManualRecipeCreate(BaseModel):
+    title: str
+    description: str = ""
+    categories: list[str] = Field(default_factory=list)
+    ingredients: list[str] = Field(default_factory=list)
+    instructions: list[str] = Field(default_factory=list)
+    prep_time: str = ""
+    cook_time: str = ""
+    servings: str = ""
+    manual_text: str = ""
 
 
 SECTION_HEADER = re.compile(
@@ -341,6 +353,32 @@ def import_recipes(request: ImportRequest) -> list[dict[str, Any]]:
                 imported.append({"source_url": url, "error": str(error)})
         db.commit()
     return imported
+
+
+@app.post("/api/recipes")
+def create_manual_recipe(request: ManualRecipeCreate) -> dict[str, Any]:
+    title = request.title.strip()
+    if not title:
+        raise HTTPException(422, "Il titolo è obbligatorio")
+    recipe = {
+        "id": str(uuid.uuid4()), "title": title, "description": request.description.strip(),
+        "author": "", "ingredients": [item.strip() for item in request.ingredients if item.strip()],
+        "instructions": [item.strip() for item in request.instructions if item.strip()],
+        "prep_time": request.prep_time.strip(), "cook_time": request.cook_time.strip(), "total_time": "",
+        "servings": request.servings.strip(), "categories": [item.strip() for item in request.categories if item.strip()],
+        "cuisine": "", "nutrition": {}, "rating": None,
+        "source_url": "manual://" + str(uuid.uuid4()), "source_site": "Inserita manualmente",
+        "image_path": "", "image_url": "", "image_hash": "", "status": "da provare",
+        "favorite": 0, "manual_text": request.manual_text.strip(),
+    }
+    columns = list(recipe)
+    values = [json.dumps(recipe[column], ensure_ascii=False) if isinstance(recipe[column], (list, dict)) else recipe[column] for column in columns]
+    with closing(connect()) as db:
+        db.execute(f"INSERT INTO recipes ({','.join(columns)}) VALUES ({','.join('?' for _ in columns)})", values)
+        refresh_fts(db, recipe)
+        db.commit()
+        row = db.execute("SELECT * FROM recipes WHERE id = ?", (recipe["id"],)).fetchone()
+        return serialize_recipe(row)
 
 
 @app.patch("/api/recipes/{recipe_id}")
