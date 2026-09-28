@@ -316,7 +316,7 @@ def stats() -> dict[str, int]:
 
 @app.get("/api/search")
 def search(q: str = Query(..., min_length=2), limit: int = Query(10, le=20)) -> list[dict[str, Any]]:
-    endpoint = os.getenv("SEARXNG_URL", "http://localhost:8080/search")
+    endpoint = os.getenv("SEARXNG_URL", "http://127.0.0.1:8080/search")
     try:
         response = httpx.get(endpoint, params={"q": q, "format": "json", "categories": "general"}, timeout=15)
         response.raise_for_status()

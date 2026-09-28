@@ -67,6 +67,32 @@ Apri quindi:
 http://127.0.0.1:8000
 ```
 
+### Accesso da un altro computer nella rete locale
+
+Avvia Uvicorn ascoltando anche sulla rete locale (non usare `--reload` per un avvio condiviso):
+
+```powershell
+.venv\Scripts\python.exe -m uvicorn app:app --host 0.0.0.0 --port 8000
+```
+
+Sul computer remoto apri `http://INDIRIZZO-IP-DEL-PC:8000`. Per trovare l'indirizzo IPv4 del PC che esegue l'app:
+
+```powershell
+Get-NetIPAddress -AddressFamily IPv4 | Where-Object {$_.IPAddress -notlike '127.*'}
+```
+
+Se Windows Firewall blocca la connessione, crea una regola in ingresso limitata alla rete privata:
+
+```powershell
+New-NetFirewallRule -DisplayName "Ricette Locali" -Direction Inbound -Protocol TCP -LocalPort 8000 -Action Allow -Profile Private
+```
+
+SearXNG resta disponibile solo sul PC dell'app (`127.0.0.1:8080`); il computer remoto passa sempre dall'API di Ricette Locali.
+
+### Accesso da Internet
+
+Non esporre direttamente la porta 8000 su Internet: questa versione non include autenticazione. Usa una VPN (ad esempio Tailscale o WireGuard) per l'accesso remoto oppure un reverse proxy HTTPS con autenticazione, rate limiting e una regola firewall dedicata.
+
 ## Ollama opzionale
 
 Per usare Ollama come fallback quando i dati estratti sono incompleti:
