@@ -288,15 +288,11 @@ def recipes(q: str = "", ingredient: str = "", exclude_ingredient: str = "", fav
         else:
             query, params = "SELECT r.* FROM recipes r WHERE 1=1", []
         if ingredient.strip():
-            ingredient_terms = re.findall(r"[\wÀ-ÿ]+", ingredient)
-            ingredient_match = " ".join(f'"{part}"' for part in ingredient_terms)
-            query += " AND (r.title LIKE ? OR r.manual_text LIKE ? OR r.id IN (SELECT recipe_id FROM recipes_fts WHERE ingredients MATCH ?))"
-            params.extend([f"%{ingredient}%", f"%{ingredient}%", ingredient_match])
+            query += " AND (r.title LIKE ? OR r.ingredients LIKE ? OR r.manual_text LIKE ?)"
+            params.extend([f"%{ingredient}%"] * 3)
         if exclude_ingredient.strip():
-            excluded_terms = re.findall(r"[\wÀ-ÿ]+", exclude_ingredient)
-            excluded_match = " ".join(f'"{part}"' for part in excluded_terms)
-            query += " AND NOT (r.title LIKE ? OR r.manual_text LIKE ? OR r.id IN (SELECT recipe_id FROM recipes_fts WHERE ingredients MATCH ?))"
-            params.extend([f"%{exclude_ingredient}%", f"%{exclude_ingredient}%", excluded_match])
+            query += " AND NOT (r.title LIKE ? OR r.ingredients LIKE ? OR r.manual_text LIKE ?)"
+            params.extend([f"%{exclude_ingredient}%"] * 3)
         if favorite:
             query += " AND r.favorite = 1" if q.strip() else " AND favorite = 1"
         if status:
