@@ -128,7 +128,7 @@ def init_db() -> None:
                 image_path TEXT DEFAULT '',
                 image_url TEXT DEFAULT '',
                 image_hash TEXT DEFAULT '',
-                status TEXT DEFAULT 'da provare' CHECK (status IN ('da provare', 'preparata', 'in preparazione', 'con priorità')),
+                status TEXT DEFAULT 'da provare',
                 favorite INTEGER DEFAULT 0,
                 created_at TEXT DEFAULT CURRENT_TIMESTAMP,
                 updated_at TEXT DEFAULT CURRENT_TIMESTAMP
@@ -218,8 +218,11 @@ def normalize_recipe(data: dict[str, Any], url: str, fallback_title: str = "Rice
         "nutrition": data.get("nutrition", {}) if isinstance(data.get("nutrition", {}), dict) else {},
         "rating": data.get("aggregateRating", {}).get("ratingValue") if isinstance(data.get("aggregateRating"), dict) else None,
         "source_url": url, "source_site": host, "image_path": "", "image_url": urljoin(url, str(image)) if image else "",
-                "image_hash": "", "status": "da provare", "favorite": 0,
-            }
+        "image_hash": "", "status": "da provare", "favorite": 0,
+    }
+
+
+def extract_recipe(html: str, url: str) -> dict[str, Any]:
     soup = BeautifulSoup(html, "html.parser")
     for script in soup.select('script[type="application/ld+json"]'):
         try:
