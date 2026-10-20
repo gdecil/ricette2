@@ -2,3 +2,5 @@
 /data
 __pycache__/
 *.py[cod]
+!recipeCategories.includes(category))
+!recipeCategories.includes(category))

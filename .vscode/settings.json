@@ -1,0 +1,8 @@
+{
+    "chat.tools.terminal.autoApprove": {
+        "/^python3 -c \"import sqlite3; c=sqlite3\\.connect\\('file:data/recipes\\.db\\?mode=ro', uri=True\\); print\\('count=',c\\.execute\\('select count\\(\\*\\) from recipes'\\)\\.fetchone\\(\\)\\[0\\]\\); print\\(c\\.execute\\('select id,title from recipes limit 10'\\)\\.fetchall\\(\\)\\)\"$/": {
+            "approve": true,
+            "matchCommandLine": true
+        }
+    }
+}
