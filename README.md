@@ -1,162 +1,119 @@
-# Ricette Locali
+# 🍲 Ricette Locali
 
-Web app locale per cercare, importare e organizzare ricette online mantenendo dati e immagini sul proprio computer.
+Ricette Locali è un'applicazione web progettata per cercare, importare e organizzare ricette online, garantendo che tutti i dati e le immagini rimangano salvati localmente sul tuo computer.
 
-## Funzionalita
+## ✨ Caratteristiche principali
 
-- Ricerca online tramite SearXNG locale
-- Importazione di una o piu ricette da URL
-- Inserimento manuale di ricette con ingredienti e procedimento
-- Estrazione dei dati `schema.org/Recipe` in JSON-LD
-- Fallback con Trafilatura/BeautifulSoup e Ollama opzionale
-- Database SQLite locale con ricerca full-text FTS5
-- Download locale delle immagini con hash per evitare duplicati
-- Dashboard per consultare e filtrare la raccolta
-- Filtri per testo, ingredienti, stato, preferiti e categoria
-- Categorie personalizzabili e spostamento drag and drop
-- Modifica dello stato: da provare o gia preparata
-- Cambio categoria dal dettaglio della ricetta
-- Caricamento manuale dell'immagine
-- Salvataggio di testo e appunti incollati manualmente nel dettaglio
-- Visualizzazione dell'URL originale e dei dettagli estratti
-- Eliminazione delle ricette dal dettaglio
+- **Ricerca Privata**: Integrazione con **SearXNG** per ricerche online protette e senza tracking.
+- **Importazione Intelligente**: Importa ricette da qualsiasi URL grazie a tecniche di estrazione dati (Trafilatura, BeautifulSoup) e supporto opzionale per **Ollama** (LLM) per completare i dati mancanti.
+- **Gestione Locale**: Database **SQLite** con ricerca full-text (FTS5) e gestione immagini locale con hash per evitare duplicati.
+- **Dashboard Interattiva**:
+    - Filtri avanzati per ingredienti, stato, preferiti e categorie.
+    - Categorie personalizzabili con supporto **drag-and-drop**.
+    - Gestione dello stato (da provare, già preparata, ecc.).
+- **Dettagli Ricetta**:
+    - Caricamento manuale di immagini e note personali.
+    - Visualizzazione dei metadati estratti e dell'URL originale.
+    - Rimozione rapida delle ricette.
 
-## Requisiti
+## 🛠 Stack Tecnologico
 
-- Python 3.11 o superiore
-- Docker Desktop, necessario solo per SearXNG
-- Ollama opzionale per completare ricette con dati incompleti
+- **Backend**: FastAPI (Python 3.11+)
+- **Frontend**: HTML, CSS, JavaScript (Vanilla)
+- **Database**: SQLite (FTS5)
+- **Search**: SearXNG (Docker)
+- **AI (Opzionale)**: Ollama (Llama 3.2)
 
-## Installazione
+## 📋 Requisiti
 
-Da PowerShell, nella cartella del progetto:
+- **Python 3.11** o superiore.
+- **Docker Desktop** (necessario per far girare SearXNG).
+- **Ollama** (opzionale, per il completamento automatico dei dati tramite AI).
+
+## 🚀 Installazione
+
+### 1. Preparazione dell'Ambiente Virtuale
+Apri un terminale nella cartella del progetto e segui questi passaggi:
 
 ```powershell
+# Creazione ambiente virtuale
 python -m venv .venv
+
+# Attivazione (Windows)
 .venv\Scripts\Activate.ps1
+
+# Installazione dipendenze
 python -m pip install -r requirements.txt
 ```
 
-Se il virtual environment esiste gia:
-
-```powershell
-.venv\Scripts\python.exe -m pip install -r requirements.txt
-```
-
-## Avvio
-
-### 1. SearXNG
-
-Avvia il motore di ricerca locale:
+### 2. Configurazione SearXNG (Motore di Ricerca)
+Avvia SearXNG tramite Docker per abilitare la ricerca locale:
 
 ```powershell
 docker compose up -d
 ```
+SearXNG sarà disponibile su `http://localhost:8080`.
 
-SearXNG sara disponibile su `http://localhost:8080`.
-
-### 2. Applicazione
+### 3. Avvio dell'Applicazione
+Avvia il server FastAPI:
 
 ```powershell
 .venv\Scripts\python.exe -m uvicorn app:app --reload
 ```
+L'app sarà accessibile su `http://127.0.0.1:8000`.
 
-Apri quindi:
+## 🌐 Accesso Remoto e Networking
 
-```text
-http://127.0.0.1:8000
-```
-
-### Accesso da un altro computer nella rete locale
-
-Avvia Uvicorn ascoltando anche sulla rete locale (non usare `--reload` per un avvio condiviso):
-
+### Rete Locale
+Per accedere dall'interno della tua rete locale, avvia Uvicorn con:
 ```powershell
 .venv\Scripts\python.exe -m uvicorn app:app --host 0.0.0.0 --port 8000
 ```
+*Nota: Assicurati di aprire la porta 8000 sul firewall di Windows se necessario.*
 
-Sul computer remoto apri `http://INDIRIZZO-IP-DEL-PC:8000`. Per trovare l'indirizzo IPv4 del PC che esegue l'app:
+### Accesso da Internet (Sicurezza)
+**Attenzione**: Questa versione non include autenticazione nativa. Per accedere da remoto in sicurezza:
+- Usa una VPN (es. **Tailscale** o **WireGuard**).
+- Oppure configura un reverse proxy HTTPS con autenticazione e rate limiting.
 
-```powershell
-Get-NetIPAddress -AddressFamily IPv4 | Where-Object {$_.IPAddress -notlike '127.*'}
-```
+## 🤖 Configurazione Ollama (Opzionale)
 
-Se Windows Firewall blocca la connessione, crea una regola in ingresso limitata alla rete privata:
+Per utilizzare Ollama come fallback quando i dati estratti sono incompleti:
 
-```powershell
-New-NetFirewallRule -DisplayName "Ricette Locali" -Direction Inbound -Protocol TCP -LocalPort 8000 -Action Allow -Profile Private
-```
-
-SearXNG resta disponibile solo sul PC dell'app (`127.0.0.1:8080`); il computer remoto passa sempre dall'API di Ricette Locali.
-
-### Accesso da Internet
-
-Non esporre direttamente la porta 8000 su Internet: questa versione non include autenticazione. Usa una VPN (ad esempio Tailscale o WireGuard) per l'accesso remoto oppure un reverse proxy HTTPS con autenticazione, rate limiting e una regola firewall dedicata.
-
-## Ollama opzionale
-
-Per usare Ollama come fallback quando i dati estratti sono incompleti:
+1. Scarica il modello: `ollama pull llama3.2`
+2. Configura le variabili d'ambiente prima di avviare l'app:
 
 ```powershell
-ollama pull llama3.2
-$env:OLLAMA_ENABLED = "true"
-$env:OLLAMA_MODEL = "llama3.2"
-.venv\Scripts\python.exe -m uvicorn app:app --reload
+:OLLAMA_ENABLED = "true"
+:OLLAMA_MODEL = "llama3.2".venv\Scripts\python.exe -m uvicorn app:app --reload
 ```
 
-Variabili supportate:
+### Variabili di Sistema Supportate:
+- : Endpoint SearXNG (Default: `http://localhost:8080/search`)
+- : Endpoint Ollama (Default: `http://localhost:11434`)
+- : Modello Ollama (Default: `llama3.2`)
+- : Abilita il fallback AI (Valore: `true`)
 
-- `SEARXNG_URL`: endpoint SearXNG, predefinito `http://localhost:8080/search`
-- `OLLAMA_URL`: endpoint Ollama, predefinito `http://localhost:11434`
-- `OLLAMA_MODEL`: modello Ollama, predefinito `llama3.2`
-- `OLLAMA_ENABLED`: abilita il fallback Ollama con valore `true`
+## 📖 Guida Rapida
 
-## Utilizzo
+1. **Cerca**: Usa la sezione "Cerca online" per trovare ricette tramite SearXNG.
+2. **Salva**: Clicca su "Salva ricetta" per aggiungere i risultati estratti alla tua collezione.
+3. **Importa**: Inserisci un URL direttamente nella dashboard per importare una ricetta specifica.
+4. **Organizza**: Usa i filtri e le categorie (drag-and-drop) per gestire la tua raccolta.
+5. **Dettagli**: Apri ogni ricetta per modificare categorie, stati, o aggiungere note manuali e immagini.
 
-1. Apri **Cerca online** e cerca una ricetta tramite SearXNG.
-2. Controlla titolo, descrizione e URL originale.
-3. Seleziona **Salva ricetta** oppure usa **Da URL** nella raccolta.
-4. Apri l'immagine della ricetta per vedere tutti i dettagli estratti.
-5. Dal dettaglio puoi cambiare categoria, stato o immagine, oppure eliminare la ricetta.
-6. Usa i filtri della raccolta per trovare rapidamente le ricette salvate.
+## 🗄️ Gestione Dati
 
-## Dati locali
+Tutti i tuoi dati sono salvati localmente nella cartella `/data`:
+- : Database SQLite con indicizzazione full-text.
+- : Immagini scaricate o caricate (gestite tramite hash per evitare duplicati).
 
-I dati vengono creati nella cartella `data/`:
+## 🔗 API Reference
 
-- `data/recipes.db`: database SQLite e indice FTS5
-- `data/images/`: immagini scaricate o caricate manualmente
+| Endpoint | Metodo | Descrizione |
+| :--- | :--- | :--- |
+|  |  | Ricerca online tramite SearXNG |
+|  |  | Elenco e filtri della raccolta ||  |  | Importa ricette da URL ||  |  | Crea una ricetta manuale ||  |  | Modifica una ricetta esistente ||  |  | Carica un'immagine per una ricetta ||  |  | Elimina una ricetta ||  |  | Statistiche della raccolta |
 
-Queste directory contengono dati locali dell'utente e non sono necessarie per il codice dell'applicazione.
-
-## Struttura
-
-```text
-ricette/
-├── app.py
-├── requirements.txt
-├── docker-compose.yml
-├── searxng/settings.yml
-├── static/
-│   ├── app.js
-│   ├── index.html
-│   └── styles.css
-└── data/
-    ├── recipes.db
-    └── images/
-```
-
-## API principali
-
-- `GET /api/search?q=...`: ricerca online tramite SearXNG
-- `GET /api/recipes`: elenco e filtri della raccolta
-- `POST /api/import`: importa ricette da URL
-- `POST /api/recipes`: crea una ricetta inserita manualmente
-- `PATCH /api/recipes/{id}`: modifica ricetta
-- `POST /api/recipes/{id}/image`: carica un'immagine
-- `DELETE /api/recipes/{id}`: elimina una ricetta
-- `GET /api/stats`: statistiche della raccolta
-
-## Licenza
-
+## 📄 Licenza
 Progetto personale per uso locale.

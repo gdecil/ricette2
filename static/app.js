@@ -69,28 +69,91 @@ function categoryInputHtml(recipe) {
     ...state.recipes.flatMap(item => item.categories || []),
     ...(recipe.categories || []),
   ])];
-  return `<div class="category-input-container">
-    <fieldset class="category-control">
-      <legend>Seleziona una o più categorie</legend>
-      <div class="category-multiselect-wrapper">
-        <div id="recipe-category-multiselect" class="category-checkboxes" aria-label="Seleziona una o più categorie">
-          ${categories.map(category => `<label><input type="checkbox" value="${escapeHtml(category)}" ${recipe.categories?.includes(category) ? 'checked' : ''}> ${escapeHtml(category)}</label>`).join('')}
-        </div>
-        <button class="add-category-btn" type="button" title="Aggiungi categoria personalizzata" aria-label="Aggiungi categoria personalizzata">+</button>
+  const selected = recipe.categories || [];
+  return `<details class="category-input-container">
+    <summary class="category-editor-summary">
+      <span class="category-editor-title">Categorie</span>
+      <span id="recipe-category-display">${selected.length ? escapeHtml(selected.join(', ')) : 'Nessuna categoria'}</span>
+    </summary>
+    <div class="category-editor-content">
+      <label class="category-search-box">
+        <span class="sr-only">Cerca categoria</span>
+        <input type="search" id="recipe-category-search" class="form-control" placeholder="Cerca categoria..." aria-label="Cerca categoria">
+      </label>
+      <div class="category-dropdown-list" id="recipe-category-list">
+        ${categories.map(category => `
+          <label class="category-dropdown-item">
+            <input type="checkbox" name="recipe-categories" value="${escapeHtml(category)}" ${selected.includes(category) ? 'checked' : ''}>
+            <span>${escapeHtml(category)}</span>
+          </label>
+        `).join('')}
       </div>
-    </fieldset>
-  </div>`;
+      <div class="new-category-form">
+        <label for="new-category">Nuova categoria</label>
+        <div class="new-category-form-input">
+          <input id="new-category" type="text" maxlength="40" placeholder="es. Preferite estive">
+          <button class="secondary" type="button" id="recipe-category-add-btn">Aggiungi</button>
+        </div>
+      </div>
+    </div>
+  </details>`;
+}
+
+function debounce(fn, delay) {
+  let timer;
+  return (...args) => {
+    clearTimeout(timer);
+    timer = setTimeout(() => fn(...args), delay);
+  };
 }
 
 function categoryMultiselectValue() {
-  return Array.from(document.querySelectorAll('#recipe-category-multiselect input:checked'), input => input.value);
+  return Array.from(document.querySelectorAll('#recipe-category-list input[name="recipe-categories"]:checked'), input => input.value);
 }
 
-function updateCategoryMultiselectDisplay(recipe) {
-  const list = document.getElementById('recipe-category-multiselect');
-  if (!list) return;
-  list.querySelectorAll('input[type="checkbox"]').forEach(input => {
-    input.checked = recipe.categories?.includes(input.value) || false;
+function setupCategoryEditor(onChange = () => {}) {
+  const list = document.getElementById('recipe-category-list');
+  const search = document.getElementById('recipe-category-search');
+  const display = document.getElementById('recipe-category-display');
+  const newCategoryInput = document.getElementById('new-category');
+  const addButton = document.getElementById('recipe-category-add-btn');
+  if (!list || !search || !display || !newCategoryInput || !addButton) return;
+
+  const updateDisplay = () => {
+    const selected = Array.from(list.querySelectorAll('input[name="recipe-categories"]:checked'), input => input.value);
+    display.textContent = selected.length ? selected.join(', ') : 'Nessuna categoria';
+    onChange(selected);
+  };
+  const filterCategories = () => {
+    const term = search.value.trim().toLowerCase();
+    list.querySelectorAll('.category-dropdown-item').forEach(item => {
+      item.hidden = term !== '' && !item.textContent.toLowerCase().includes(term);
+    });
+  };
+
+  search.addEventListener('input', filterCategories);
+  list.addEventListener('change', updateDisplay);
+  addButton.addEventListener('click', () => {
+    const name = newCategoryInput.value.trim();
+    if (!name) return;
+    let checkbox = Array.from(list.querySelectorAll('input[name="recipe-categories"]'))
+      .find(input => input.value.toLowerCase() === name.toLowerCase());
+    if (!checkbox) {
+      const label = document.createElement('label');
+      label.className = 'category-dropdown-item';
+      checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.name = 'recipe-categories';
+      checkbox.value = name;
+      const text = document.createElement('span');
+      text.textContent = name;
+      label.append(checkbox, text);
+      list.appendChild(label);
+    }
+    checkbox.checked = true;
+    newCategoryInput.value = '';
+    filterCategories();
+    updateDisplay();
   });
 }
 
@@ -205,29 +268,28 @@ function showRecipeDetail(recipe) {
   state.detailRecipeId = recipe.id;
   const list = (items, tag) => (items || []).length ? `<${tag}>${items.map(item => `<li>${escapeHtml(item)}</li>`).join('')}</${tag}>` : '<p>Non disponibile</p>';
   const nutrition = Object.entries(recipe.nutrition || {}).map(([key, value]) => `${escapeHtml(key)}: ${escapeHtml(value)}`).join(' · ');
-  $('#recipe-detail-content').innerHTML = `${recipe.image_path ? `<div class="recipe-detail-image" style="background-image:url('${recipe.image_path}')"></div>` : ''}<div class="recipe-detail-content"><small>${escapeHtml(recipe.source_site || 'ricetta')}</small><h2>${escapeHtml(recipe.title)}</h2>${categoryInputHtml(recipe)}<form id="new-category-form" class="new-category-form hidden"><label for="new-category">Nuova categoria</label><div><input id="new-category" type="text" maxlength="40" placeholder="es. Preferite estive" required><button class="secondary" type="submit">Aggiungi</button></div></form><label class="image-upload">${recipe.image_path ? 'Sostituisci immagine' : 'Aggiungi immagine'}<input id="recipe-image-upload" type="file" accept="image/*"></label><label class="status-control">Stato ricetta <select id="recipe-status"><option value="da provato" ${recipe.status === 'da provato' ? 'selected' : ''}>Da provato</option><option value="in preparazione">${recipe.status === 'in preparazione' ? 'selected' : ''}">In preparazione</option><option value="già preparata" ${recipe.status === 'già preparata' ? 'selected' : ''}>Già preparata</option></select></label><div class="recipe-detail-meta">${[['Preparazione', recipe.prep_time], ['Cottura', recipe.cook_time], ['Totale', recipe.total_time], ['Porzioni', recipe.servings], ['Cucina', recipe.cuisine], ['Valutazione', recipe.rating]].filter(([, value]) => value).map(([label, value]) => `<span>${escapeHtml(label)}: ${escapeHtml(value)}</span>`).join('')}</div><p>${escapeHtml(recipe.description || 'Nessuna descrizione disponibile.')}</p><h4>Ingredienti</h4>${list(recipe.ingredients, 'ul')}<h4>Procedimento</h4>${list(recipe.instructions, 'ol')}${nutrition ? `<h4>Informazioni nutrizionali</h4><p>${nutrition}</p>` : ''}<form id="manual-text-form" class="manual-text-form"><label for="manual-text">Testo aggiuntivo</label><textarea id="manual-text" rows="8" placeholder="Incolla qui una ricetta o degli appunti...">${escapeHtml(recipe.manual_text || '')}</textarea><button class="primary" type="submit">Salva testo</button></form><h4>Fonte originale</h4>${recipe.source_url.startsWith('manual://') ? '<p>Inserita manualmente</p>' : `<a class="recipe-source" href="${escapeHtml(recipe.source_url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(recipe.source_url)}</a>`}<button id="delete-recipe" class="danger-button" type="button">Elimina ricetta</button></div>`;
+  $('#recipe-detail-content').innerHTML = `${recipe.image_path ? `<div class="recipe-detail-image" style="background-image:url('${recipe.image_path}')"></div>` : ''}<div class="recipe-detail-content"><small>${escapeHtml(recipe.source_site || 'ricetta')}</small><h2>${escapeHtml(recipe.title)}</h2><label class="status-control">Stato ricetta <select id="recipe-status"><option value="da provare" ${recipe.status === 'da provare' ? 'selected' : ''}>Da provare</option><option value="in preparazione" ${recipe.status === 'in preparazione' ? 'selected' : ''}>In preparazione</option><option value="già preparata" ${recipe.status === 'già preparata' ? 'selected' : ''}>Già preparata</option></select></label><div class="recipe-detail-meta">${[['Preparazione', recipe.prep_time], ['Cottura', recipe.cook_time], ['Totale', recipe.total_time], ['Porzioni', recipe.servings], ['Cucina', recipe.cuisine], ['Valutazione', recipe.rating]].filter(([, value]) => value).map(([label, value]) => `<span>${escapeHtml(label)}: ${escapeHtml(value)}</span>`).join('')}</div><p>${escapeHtml(recipe.description || 'Nessuna descrizione disponibile.')}</p><h4>Ingredienti</h4>${list(recipe.ingredients, 'ul')}<h4>Procedimento</h4>${list(recipe.instructions, 'ol')}${nutrition ? `<h4>Informazioni nutrizionali</h4><p>${nutrition}</p>` : ''}<form id="manual-text-form" class="manual-text-form"><label for="manual-text">Testo aggiuntivo</label><textarea id="manual-text" rows="8" placeholder="Incolla qui una ricetta o degli appunti...">${escapeHtml(recipe.manual_text || '')}</textarea><button class="primary" type="submit">Salva testo</button></form><h4>Fonte originale</h4>${recipe.source_url.startsWith('manual://') ? '<p>Inserita manualmente</p>' : `<a class="recipe-source" href="${escapeHtml(recipe.source_url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(recipe.source_url)}</a>`}<div class="recipe-detail-tools">${categoryInputHtml(recipe)}<label class="image-upload">${recipe.image_path ? 'Sostituisci immagine' : 'Aggiungi immagine'}<input id="recipe-image-upload" type="file" accept="image/*"></label></div><button id="delete-recipe" class="danger-button" type="button">Elimina ricetta</button></div>`;
+  const saveRecipeCategoriesDebounced = debounce((categories) => {
+    fetch(`/api/recipes/${recipe.id}`, {
+      method: 'PATCH',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({categories}),
+    }).then(async response => {
+      if (!response.ok) throw new Error('Impossibile aggiornare le categorie');
+      Object.assign(recipe, await response.json());
+      const current = state.recipes.find(item => item.id === recipe.id);
+      if (current) Object.assign(current, recipe);
+      renderLibrary();
+    }).catch(error => toast(error.message));
+  }, 400);
+  setupCategoryEditor(categories => {
+    recipe.categories = categories;
+    saveRecipeCategoriesDebounced(categories);
+  });
   const statusSelect = $('#recipe-status');
   statusSelect.options[1].textContent = 'In preparazione';
   statusSelect.value = recipe.status === 'preparata' ? 'già preparata' : recipe.status;
   $('#recipe-detail').classList.remove('hidden');
-  $('#recipe-category-multiselect').addEventListener('change', async () => {
-    const categories = categoryMultiselectValue();
-    const response = await fetch(`/api/recipes/${recipe.id}`, {
-      method: 'PATCH',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({categories}),
-    });
-    if (!response.ok) {
-      updateCategoryMultiselectDisplay(recipe);
-      toast('Impossibile aggiornare le categorie');
-      return;
-    }
-    Object.assign(recipe, await response.json());
-    const current = state.recipes.find(item => item.id === recipe.id);
-    if (current) Object.assign(current, recipe);
-    renderLibrary();
-    toast('Categorie aggiornate');
-  });
   $('#delete-recipe').addEventListener('click', async () => {
     if (!window.confirm(`Eliminare la ricetta "${recipe.title}"?`)) return;
     const response = await fetch(`/api/recipes/${recipe.id}`, {method: 'DELETE'});
@@ -262,6 +324,7 @@ function showManualRecipeForm() {
   state.detailRecipeId = null;
   $('#recipe-detail-content').innerHTML = `<form id="manual-recipe-form" class="recipe-detail-content manual-recipe-form"><h2>Nuova ricetta</h2><label for="manual-title">Titolo *</label><input id="manual-title" name="title" required maxlength="200" autofocus><label for="manual-description">Descrizione</label><textarea id="manual-description" name="description" rows="2"></textarea>${categoryInputHtml({})}<div class="form-row"><label for="manual-prep-time">Preparazione<input id="manual-prep-time" name="prep_time" placeholder="es. 20 min"></label><label for="manual-cook-time">Cottura<input id="manual-cook-time" name="cook_time" placeholder="es. 35 min"></label></div><label for="manual-servings">Porzioni</label><input id="manual-servings" name="servings" placeholder="es. 4 persone"><label class="status-control">Stato ricetta <select id="manual-status" name="status"><option value="da provare" selected>Da provare</option><option value="in preparazione">In preparazione</option><option value="preparata">preparata</option></select></label><label for="manual-ingredients">Ingredienti <small>Uno per riga</small></label><textarea id="manual-ingredients" name="ingredients" rows="5" placeholder="200 g di pasta&#10;1 cipolla"></textarea><label for="manual-instructions">Procedimento <small>Un passaggio per riga</small></label><textarea id="manual-instructions" name="instructions" rows="6"></textarea><label for="manual-notes">Appunti</label><textarea id="manual-notes" name="manual_text" rows="3"></textarea><div class="form-actions"><button class="secondary" type="button" id="cancel-manual-recipe">Annulla</button><button class="primary" type="submit">Salva ricetta</button></div></form>`;
   $('#recipe-detail').classList.remove('hidden');
+  setupCategoryEditor();
   $('#manual-title').focus();
   $('#cancel-manual-recipe').addEventListener('click', closeRecipeDetail);
   $('#manual-recipe-form').addEventListener('submit', async (event) => {
@@ -305,6 +368,79 @@ async function runSearch() {
 async function importFromUrl(event) {
   event.preventDefault();
   const form = event.currentTarget;
+  setupCategoryInteractions(recipe);
+
+
+function setupCategoryInteractions(recipe) {
+  const toggle = document.getElementById('recipe-category-toggle');
+  const dropdown = document.getElementById('recipe-category-dropdown');
+  const display = document.getElementById('recipe-category-display');
+  const addBtn = document.getElementById('recipe-category-add-btn');
+  const newCategoryForm = document.getElementById('new-category-form');
+  const newCategoryInput = document.getElementById('new-category');
+
+  if (!toggle || !dropdown) return;
+
+  // Toggle dropdown visibility
+  toggle.addEventListener('click', (e) => {
+    e.stopPropagation();
+    dropdown.classList.toggle('hidden');
+    toggle.classList.toggle('active');
+  });
+
+  // Close dropdown on click outside
+  document.addEventListener('click', (e) => {
+    if (!dropdown.contains(e.target) && !toggle.contains(e.target)) {
+      dropdown.classList.add('hidden');
+      toggle.classList.remove('active');
+    }
+  });
+
+  // Update display when checkboxes change
+  dropdown.querySelectorAll('input[name="recipe-categories"]').forEach(checkbox => {
+    checkbox.addEventListener('change', () => {
+      const selected = Array.from(dropdown.querySelectorAll('input[name="recipe-categories"]:checked'))
+        .map(cb => cb.value);
+      updateRecipeCategories(recipe, selected);
+    });
+  });
+
+  // Add new category from form
+  newCategoryForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const newCat = newCategoryInput.value.trim();
+    if (newCat) {
+      const currentCategories = Array.from(dropdown.querySelectorAll('input[name="recipe-categories"]:checked')).map(cb => cb.value);
+      if (!currentCategories.includes(newCat)) {
+        currentCategories.push(newCat);
+        updateRecipeCategories(recipe, currentCategories);
+        newCategoryInput.value = '';
+        newCategoryForm.classList.add('hidden');
+        // Also update the state.recipes so it appears in the dropdown for other recipes
+        const recipeIndex = state.recipes.findIndex(r => r.id === recipe.id);
+        if (recipeIndex !== -1) {
+          state.recipes[recipeIndex].categories = currentCategories;
+        }
+      }
+    }
+  });
+
+  // Toggle new category form visibility
+  addBtn.addEventListener('click', () => {
+    newCategoryForm.classList.toggle('hidden');
+  });
+}
+
+function updateRecipeCategories(recipe, selectedCategories) {
+  recipe.categories = selectedCategories;
+  const display = document.getElementById('recipe-category-display');
+  if (recipe.categories && recipe.categories.length > 0) {
+    display.innerHTML = recipe.categories.map(cat => `<span class="category-tag">${escapeHtml(categoryLabel({categories: [cat]}) || cat)}</span>`).join('');
+  } else {
+    display.innerHTML = '<span class="category-placeholder">Nessuna categoria</span>';
+  }
+}
+
   const input = $('#recipe-url');
   const button = form.querySelector('button[type="submit"]');
   button.disabled = true; button.textContent = 'Importazione...';
