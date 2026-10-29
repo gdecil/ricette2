@@ -4,3 +4,10 @@ __pycache__/
 *.py[cod]
 !recipeCategories.includes(category))
 !recipeCategories.includes(category))
+.aider.chat.history.md
+.aider.tags.cache.v4/cache.db
+.gitignore
+.gitignore
+logs/aider_mcp_server.log
+.aider.tags.cache.v4/cache.db-wal
+.aider.tags.cache.v4/cache.db-shm

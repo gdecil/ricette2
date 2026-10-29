@@ -368,79 +368,6 @@ async function runSearch() {
 async function importFromUrl(event) {
   event.preventDefault();
   const form = event.currentTarget;
-  setupCategoryInteractions(recipe);
-
-
-function setupCategoryInteractions(recipe) {
-  const toggle = document.getElementById('recipe-category-toggle');
-  const dropdown = document.getElementById('recipe-category-dropdown');
-  const display = document.getElementById('recipe-category-display');
-  const addBtn = document.getElementById('recipe-category-add-btn');
-  const newCategoryForm = document.getElementById('new-category-form');
-  const newCategoryInput = document.getElementById('new-category');
-
-  if (!toggle || !dropdown) return;
-
-  // Toggle dropdown visibility
-  toggle.addEventListener('click', (e) => {
-    e.stopPropagation();
-    dropdown.classList.toggle('hidden');
-    toggle.classList.toggle('active');
-  });
-
-  // Close dropdown on click outside
-  document.addEventListener('click', (e) => {
-    if (!dropdown.contains(e.target) && !toggle.contains(e.target)) {
-      dropdown.classList.add('hidden');
-      toggle.classList.remove('active');
-    }
-  });
-
-  // Update display when checkboxes change
-  dropdown.querySelectorAll('input[name="recipe-categories"]').forEach(checkbox => {
-    checkbox.addEventListener('change', () => {
-      const selected = Array.from(dropdown.querySelectorAll('input[name="recipe-categories"]:checked'))
-        .map(cb => cb.value);
-      updateRecipeCategories(recipe, selected);
-    });
-  });
-
-  // Add new category from form
-  newCategoryForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const newCat = newCategoryInput.value.trim();
-    if (newCat) {
-      const currentCategories = Array.from(dropdown.querySelectorAll('input[name="recipe-categories"]:checked')).map(cb => cb.value);
-      if (!currentCategories.includes(newCat)) {
-        currentCategories.push(newCat);
-        updateRecipeCategories(recipe, currentCategories);
-        newCategoryInput.value = '';
-        newCategoryForm.classList.add('hidden');
-        // Also update the state.recipes so it appears in the dropdown for other recipes
-        const recipeIndex = state.recipes.findIndex(r => r.id === recipe.id);
-        if (recipeIndex !== -1) {
-          state.recipes[recipeIndex].categories = currentCategories;
-        }
-      }
-    }
-  });
-
-  // Toggle new category form visibility
-  addBtn.addEventListener('click', () => {
-    newCategoryForm.classList.toggle('hidden');
-  });
-}
-
-function updateRecipeCategories(recipe, selectedCategories) {
-  recipe.categories = selectedCategories;
-  const display = document.getElementById('recipe-category-display');
-  if (recipe.categories && recipe.categories.length > 0) {
-    display.innerHTML = recipe.categories.map(cat => `<span class="category-tag">${escapeHtml(categoryLabel({categories: [cat]}) || cat)}</span>`).join('');
-  } else {
-    display.innerHTML = '<span class="category-placeholder">Nessuna categoria</span>';
-  }
-}
-
   const input = $('#recipe-url');
   const button = form.querySelector('button[type="submit"]');
   button.disabled = true; button.textContent = 'Importazione...';
@@ -456,6 +383,17 @@ function updateRecipeCategories(recipe, selectedCategories) {
     button.disabled = false; button.textContent = 'Importa';
   }
 }
+
+function updateRecipeCategories(recipe, selectedCategories) {
+  recipe.categories = selectedCategories;
+  const display = document.getElementById('recipe-category-display');
+  if (recipe.categories && recipe.categories.length > 0) {
+    display.innerHTML = recipe.categories.map(cat => `<span class="category-tag">${escapeHtml(categoryLabel({categories: [cat]}) || cat)}</span>`).join('');
+  } else {
+    display.innerHTML = '<span class="category-placeholder">Nessuna categoria</span>';
+  }
+}
+
 $('#library-search').addEventListener('input', loadLibrary); $('#ingredient-filter').addEventListener('input', loadLibrary); $('#exclude-ingredient-filter').addEventListener('input', loadLibrary); $('#status-filter').addEventListener('change', loadLibrary); $('#favorites-filter').addEventListener('click', () => { state.favoriteOnly = !state.favoriteOnly; $('#favorites-filter').textContent = state.favoriteOnly ? '♥' : '♡'; loadLibrary(); });
 $('#run-search').addEventListener('click', runSearch); $('#online-search').addEventListener('keydown', event => { if (event.key === 'Enter') runSearch(); });
 $('#new-search').addEventListener('click', () => showView('search')); $('#empty-search').addEventListener('click', () => showView('search')); $('#import-url-toggle').addEventListener('click', () => { $('#url-import-form').classList.toggle('hidden'); if (!$('#url-import-form').classList.contains('hidden')) $('#recipe-url').focus(); }); $('#url-import-form').addEventListener('submit', importFromUrl); document.querySelectorAll('.nav-item').forEach(item => item.addEventListener('click', () => showView(item.dataset.view)));
