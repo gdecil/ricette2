@@ -10,13 +10,18 @@ const DEFAULT_CATEGORIES = ['Antipasti', 'Primi', 'Secondi', 'Contorni', 'Dolci'
 
 function normalizeCategoryLabel(category) {
   const raw = String(category || '').toLowerCase();
+  const word = (needle) => new RegExp(`(^|[^0-9a-z])${needle}([^0-9a-z]|$)`).test(raw);
+  // "pasta" non conta come "Primi": es. "Pasta Ripiena" resta una categoria a se
   if (raw.includes('antipast')) return 'Antipasti';
-  if (raw.includes('prim') || raw.includes('pasta') || raw.includes('risott')) return 'Primi';
-  if (raw.includes('second') || raw.includes('carne') || raw.includes('pesce')) return 'Secondi';
-  if (raw.includes('contorn') || raw.includes('verdure')) return 'Contorni';
-  if (raw.includes('dessert') || raw.includes('dolc') || raw.includes('torta')) return 'Dolci';
-  if (raw.includes('pane') || raw.includes('pizza')) return 'Pane e pizza';
-  return category || 'Altro';
+  if (word('prim') || word('risott')) return 'Primi';
+  if (word('second') || word('secondo')) return 'Secondi';
+  if (word('carne')) return 'Carne';
+  if (word('pesce')) return 'Pesce';
+  if (word('contorn') || word('verdure')) return 'Contorni';
+  if (word('dessert') || word('dolc') || word('torta')) return 'Dolci';
+  if (word('pane') || word('pizza')) return 'Pane e pizza';
+  // Categoria non standard: mantienila com'è per mostrarla/tabbarla come categoria a sé
+  return String(category || '').trim() || 'Altro';
 }
 
 function categoryLabels(recipe) {
@@ -29,17 +34,10 @@ function categoryLabel(recipe) {
   return categoryLabels(recipe)[0];
 }
 
-// Alias for display purposes (same logic as categoryLabel)
+// Alias per visualizzazione sopra la card (stessa logica canonica)
 function getDisplayCategoryName(recipe) {
   if (!recipe.categories || !recipe.categories.length) return 'Altro';
-  const raw = String(recipe.categories[0] || '').toLowerCase();
-  if (raw.includes('antipast')) return 'Antipasti';
-  if (raw.includes('prim') || raw.includes('pasta') || raw.includes('risott')) return 'Primi';
-  if (raw.includes('second') || raw.includes('carne') || raw.includes('pesce')) return 'Secondi';
-  if (raw.includes('contorn') || raw.includes('verdure')) return 'Contorni';
-  if (raw.includes('dessert') || raw.includes('dolc') || raw.includes('torta')) return 'Dolci';
-  if (raw.includes('pane') || raw.includes('pizza')) return 'Pane e pizza';
-  return recipe.categories?.[0] || 'Altro';
+  return normalizeCategoryLabel(recipe.categories[0]);
 }
 
 function categoryTags(recipe) {
